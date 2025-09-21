@@ -1,4 +1,4 @@
-# streamlit_app.py
+
 import os
 import json
 import time
@@ -8,33 +8,29 @@ import streamlit as st
 from PIL import Image
 import joblib
 
-# TF imports lazy (avoid import cost if you only use crop rec)
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
-# ---------- CONFIG: tweak if your paths differ ----------
 DISEASE_MODEL_PATH = r"C:\Users\Risha H M\AI_Crop_System\crop_disease_detection\notebooks\crop_disease_model.h5"
 DISEASE_TRAIN_DIR  = r"C:\Users\Risha H M\AI_Crop_System\crop_disease_detection\data\split\train"  # to derive class names
 
 CROP_MODEL_PATH    = r"C:\Users\Risha H M\AI_Crop_System\crop_recommendation\notebooks\crop_recommendation.pkl"
 CROP_META_PATH     = r"C:\Users\Risha H M\AI_Crop_System\crop_recommendation\notebooks\crop_recommendation_metadata.json"
 
-IMG_SIZE = (224, 224)  # must match your training
+IMG_SIZE = (224, 224)  
 TOP_K = 3
-# --------------------------------------------------------
+
 
 st.set_page_config(page_title="AI Crop Assistant", page_icon="🌾", layout="wide")
 
-# ---------- Helper: derive disease classes in same order as training ----------
 def load_disease_classes(train_dir: str):
     if not os.path.isdir(train_dir):
         return []
     classes = [d for d in os.listdir(train_dir) if os.path.isdir(os.path.join(train_dir, d))]
-    classes = sorted(classes)  # Keras flow_from_directory uses sorted order
+    classes = sorted(classes)  
     return classes
 
-# ---------- Cache: load models once ----------
 @st.cache_resource
 def load_disease_model_and_classes():
     classes = load_disease_classes(DISEASE_TRAIN_DIR)
@@ -61,9 +57,9 @@ st.caption("Leaf disease diagnosis + data-driven crop recommendation")
 
 tab1, tab2 = st.tabs(["🩺 Disease Diagnosis", "🧪 Crop Recommendation"])
 
-# =========================
+
 # TAB 1: Disease Diagnosis
-# =========================
+
 with tab1:
     st.subheader("Upload a leaf image")
     colL, colR = st.columns([1,1])
@@ -81,48 +77,47 @@ with tab1:
 
     with colR:
         if img_file is not None and disease_model is not None:
-            # Read & preprocess
+            
             image = Image.open(img_file).convert("RGB")
             st.image(image, caption="Uploaded image", use_container_width=True)
 
             img = image.resize(IMG_SIZE)
             arr = img_to_array(img)
             arr = np.expand_dims(arr, axis=0)
-            # you trained with rescale=1./255; preprocess_input is fine on [0,255] too,
-            # but since you used rescale, we do manual /255 here:
+            
             arr = arr / 255.0
 
             with st.spinner("Running inference..."):
                 preds = disease_model.predict(arr)
                 preds = np.squeeze(preds)  # shape: (num_classes,)
 
-            # Top-K
+         
             top_idx = np.argsort(preds)[::-1][:TOP_K]
             if disease_classes and len(disease_classes) == preds.shape[0]:
                 top_labels = [disease_classes[i] for i in top_idx]
             else:
-                # Fallback labels if classes not available
+                
                 top_labels = [f"class_{i}" for i in top_idx]
 
             st.markdown("### Results")
             for rank, (idx, label) in enumerate(zip(top_idx, top_labels), start=1):
                 st.write(f"**{rank}. {label}** — {preds[idx]*100:.2f}%")
 
-            # Best prediction highlight
+        
             best_label = top_labels[0]
             best_conf = preds[top_idx[0]] * 100
             st.success(f"Predicted: **{best_label}** ({best_conf:.2f}% confidence)")
 
-            # Optional: simple advisory text stub
+          
             with st.expander("Advisory (template)"):
                 st.write("• Confirm visually with multiple leaves.")
                 st.write("• Remove heavily infected leaves.")
                 st.write("• Consider recommended fungicide/biocontrol based on local guidelines.")
                 st.write("• Ensure proper field sanitation and crop rotation.")
 
-# =========================
+
 # TAB 2: Crop Recommendation
-# =========================
+
 with tab2:
     st.subheader("Enter soil & weather values")
     if crop_model is None or crop_meta is None:
@@ -132,7 +127,7 @@ with tab2:
         feats = crop_meta.get("features", ["N","P","K","temperature","humidity","ph","rainfall"])
         classes = crop_meta.get("classes", [])
 
-        # Two-column input form
+       
         c1, c2 = st.columns(2)
         with c1:
             N  = st.number_input("Nitrogen (N)", min_value=0.0, step=1.0, value=90.0)
